@@ -7,4 +7,5 @@
                  [org.clojure/clojure "1.10.0"]
                  [org.clojure/core.async "0.4.490"]
                  [ubergraph "0.5.2"]]
-  :repl-options {:init-ns cljow-system.core})
+  :repl-options {:init-ns cljow-system.core}
+  :pedantic? :abort)
