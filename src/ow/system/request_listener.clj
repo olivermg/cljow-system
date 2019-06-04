@@ -29,8 +29,8 @@
 
 (defn init-lifecycle-xf [rf]
   (letfn [(handle-exception [this e & [try]]
-            (log/warn handler-exception nil {:error (if try (str e) e)
-                                               :try   (or try :last)}))
+            (log/warn handler-exception nil {:error e
+                                             :try   (or try :last)}))
 
           (apply-handler [{{:keys [handler retry-count retry-delay-fn]} :ow.system/request-listener :as this}
                           request-map]
