@@ -120,9 +120,9 @@
                           (if-not (nil? response-container)
                             response
                             (ex-info "response channel was closed"
-                                     (log/log-data response-channel-closed nil request)))
+                                     (log/log-data :debug response-channel-closed nil request)))
                           (ex-info "timeout while waiting for response"
-                                   (log/log-data response-timeout nil request)))))]
+                                   (log/log-data :debug response-timeout nil request)))))]
     (log/trace request-request "doing request")
     (a/put! out-ch (-> request-map log/attach))
     (let [response (a/<!! receipt)]
