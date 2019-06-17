@@ -1,5 +1,5 @@
 (ns ow.lifecycle  ;; TODO: should we move this into a separate library?
-  (:require [ow.logging :as log]))
+  (:require [ow.logging.api.alpha :as log]))
 
 ;;; NOTE: these are only for backwards compatibility:
 (defn construct [& args])

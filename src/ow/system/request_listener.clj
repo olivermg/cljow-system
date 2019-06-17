@@ -1,6 +1,6 @@
 (ns ow.system.request-listener
   (:require [clojure.core.async :as a]
-            [ow.logging :as log]
+            [ow.logging.api.alpha :as log]
             [ow.clojure :as owclj]
             [ow.clojure.async :as owa]
             [ow.system.util :as osu]))
@@ -21,7 +21,7 @@
                                       #(or % (let [in-tap (a/tap in-mult (a/chan))
                                                    in-pub (a/pub in-tap topic-fn)]
                                                (owa/chunking-sub in-pub topics (a/chan)
-                                                                 (fn [_] (some-> (log/get-trace-root) :id)))))))
+                                                                 (fn [_] (some-> (log/get-checkpoints-root) :id)))))))
                          system)
              component (update-in component [:ow.system/requester :out-ch] #(or % out-ch))
              system    (assoc-in system [:components name :workers instance] component)]
@@ -29,12 +29,12 @@
 
 (defn init-lifecycle-xf [rf]
   (letfn [(handle-exception [this e & [try]]
-            (log/warn handler-exception nil {:error e
-                                             :try   (or try :last)}))
+            (log/warn "handler exception" {:error e
+                                           :try   (or try :last)}))
 
           (apply-handler [{{:keys [handler retry-count retry-delay-fn]} :ow.system/request-listener :as this}
                           request-map]
-            (log/with-trace apply-handler
+            (log/with-checkpoint apply-handler
               (let [retry-count    (or retry-count 1)
                     retry-delay-fn (or retry-delay-fn
                                        (owclj/make-retry-delay-log10-f :exp 2.0
@@ -48,7 +48,7 @@
                               :try-sym       try
                               :exception-f   (partial handle-exception this)
                               :retry-delay-f retry-delay-fn]
-                             (log/trace invoke-handler nil {:try try})
+                             (log/trace "invoke handler" {:try try})
                              (handler this requests)
                              (catch Throwable e
                                (handle-exception this e)
@@ -61,21 +61,21 @@
                                     (remove nil?))]
               (cond
                 ;;; 1. if caller(s) is/are waiting for a response, return response to it/them, regardless of if it's an exception or not:
-                (not-empty response-chs)       (do (log/trace handler-result-respond "sending back handler's response" response)
+                (not-empty response-chs)       (do (log/trace "sending back handler's response" response)
                                                    (doseq [response-ch response-chs]
                                                      (a/put! response-ch [response])
                                                      (a/close! response-ch)))
                 ;;; 2. if nobody is waiting for our response, throw exceptions:
-                (instance? Throwable response) (do (log/trace handler-result-throw "throwing handler's exception" response)
+                (instance? Throwable response) (do (log/trace "throwing handler's exception" response)
                                                    (throw response))
                 ;;; 3. if nobody is waiting for our response, simply evaluate to regular responses:
-                true                           (do (log/trace handler-result-discard "discarding handler's response" response)
+                true                           (do (log/trace "discarding handler's response" response)
                                                    response))))
 
           (run-loop [this in-ch]
             (a/go-loop [topics-map (a/<! in-ch)]
               (when-not (nil? topics-map)
-                (log/with-loginfo (some-> topics-map first val log/detach)  ;; TODO: how can we remove this internal knowledge of ow.logging?
+                (log/with-logging-info (some-> topics-map first val log/detach)  ;; TODO: how can we remove this internal knowledge of ow.logging?
                   (future
                     (->> (apply-handler this topics-map)
                          (handle-response this topics-map))))
@@ -83,11 +83,11 @@
 
           (make-lifecycle [system component-name]
             (let [worker-sub (get-in system [:components component-name :worker-sub])]
-              {:start (log/fn request-listener-start [{{:keys [topic-fn topic]} :ow.system/request-listener :as this}]
+              {:start (fn request-listener-start [{{:keys [topic-fn topic]} :ow.system/request-listener :as this}]
                         (let [in-ch (a/pipe worker-sub (a/chan))]
                           (run-loop this in-ch)
                           (assoc-in this [:ow.system/request-listener :in-ch] in-ch)))
-               :stop  (log/fn request-listener-stop [this]
+               :stop  (fn request-listener-stop [this]
                         (update-in this [:ow.system/request-listener :in-ch] #(and % a/close! nil)))}))]
 
     (fn
@@ -99,15 +99,15 @@
                          component)]
          (rf (assoc-in system [:components name :workers instance] component) component))))))
 
-(log/defn emit [{:keys [ow.system/requester] :as this} topic request]
+(defn emit [{:keys [ow.system/requester] :as this} topic request]
   ;;; TODO: do we need an option to specify retry-count per event?
   (let [{:keys [out-ch]} requester
         event-map {:topic   topic
                    :request request}]
-    (log/trace emit "emitting event")
+    (log/trace "emitting event")
     (a/put! out-ch (-> event-map log/attach))))
 
-(log/defn request [{:keys [ow.system/requester] :as this} topic request & {:keys [timeout]}]
+(defn request [{:keys [ow.system/requester] :as this} topic request & {:keys [timeout]}]
   (let [{:keys [out-ch]} requester
         response-ch (a/promise-chan)
         request-map {:topic       topic
@@ -120,9 +120,9 @@
                           (if-not (nil? response-container)
                             response
                             (ex-info "response channel was closed"
-                                     (log/log-data :debug response-channel-closed nil request)))
+                                     (log/log-data :debug "response channel closed" request)))
                           (ex-info "timeout while waiting for response"
-                                   (log/log-data :debug response-timeout nil request)))))]
+                                   (log/log-data :debug "response timeout" request)))))]
     (log/trace request-request "doing request")
     (a/put! out-ch (-> request-map log/attach))
     (let [response (a/<!! receipt)]

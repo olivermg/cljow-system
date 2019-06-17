@@ -1,6 +1,6 @@
 (ns ow.system.dependencies
   (:require [clojure.set :as set]
-            [ow.logging :as log]
+            [ow.logging.api.alpha :as log]
             [ubergraph.core :as ug]
             [ubergraph.alg :as uga]))
 
@@ -28,7 +28,7 @@
           (if-not (= prev-dependency-op :inject)
             (-> (update component :ow.system/dependencies
                         #(->> (map (fn [depcn]
-                                     (log/debug inject-dependencies (str "Injecting into " name "#" instance ": " depcn))
+                                     (log/debug (str "Injecting into " name "#" instance ": " depcn))
                                      [depcn (get-in system [:components depcn :workers])])
                                    %)
                               (into {})))
@@ -39,7 +39,7 @@
           (if-not (= prev-dependency-op :deject)
             (-> (update component :ow.system/dependencies
                         #(-> (map (fn [[depcn _]]
-                                    (log/debug deject-dependencies (str "Dejecting from " name "#" instance ": " depcn))
+                                    (log/debug (str "Dejecting from " name "#" instance ": " depcn))
                                     depcn)
                                   %)
                              set))

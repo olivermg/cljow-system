@@ -1,6 +1,6 @@
 (ns ow.system.interval-worker
   (:require [clojure.core.async :as a]
-            [ow.logging :as log]))
+            [ow.logging.api.alpha :as log]))
 
 (defn init-lifecycle-xf [rf]
   (fn
@@ -12,22 +12,22 @@
                            :interval-worker-instance instance
                            :action-name              action-name}]
                  (try
-                   (log/trace invoke-action-start "running interval-worker's action" info)
+                   (log/trace "running interval-worker's action" info)
                    (action this)
-                   (log/debug invoke-action-success "invocation of interval-worker's action was a SUCCESS" info)
+                   (log/debug "invocation of interval-worker's action was a SUCCESS" info)
                    (catch Throwable e
-                     (log/warn invoke-action-error "interval-worker's action has FAILED"
+                     (log/warn "interval-worker's action has FAILED"
                                (assoc info :error-message (str e)))
                      e))))
 
              (run-worker [this {:keys [interval name action]}]
                (let [ctrlch (a/chan)]
-                 (log/info run-worker-start "Starting interval-worker" {:name name :instance instance})
+                 (log/info "Starting interval-worker" {:name name :instance instance})
                  (a/go-loop [[msg ch] (a/alts! [ctrlch (a/timeout interval)])]
                    (if-not (= ch ctrlch)
                      (do (invoke-action this name action)  ;; NOTE: not doing this async on purpose, to avoid overlapping invocations
                          (recur (a/alts! [ctrlch (a/timeout interval)])))
-                     (log/info run-worker-stop "Stopped interval-worker" {:name name :instance instance})))
+                     (log/info "Stopped interval-worker" {:name name :instance instance})))
                  ctrlch))
 
              (stop-worker [ctrlch]

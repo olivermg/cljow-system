@@ -1,9 +1,9 @@
 (ns ow.system.lifecycles
-  (:require [ow.logging :as log]))
+  (:require [ow.logging.api.alpha :as log]))
 
 (letfn [(start-or-stop-component [{:keys [ow.system/lifecycles ::prev-lifecycle-op ow.system/name ow.system/instance] :as component} op-kw]
           (if-not (= op-kw prev-lifecycle-op)
-            (do (log/info start-or-stop-component (str "Component " name "#" instance ": " (clojure.core/name op-kw)))
+            (do (log/info (str "Component " name "#" instance ": " (clojure.core/name op-kw)))
                 (reduce (fn [component lifecycle]
                           (let [f (get lifecycle op-kw identity)]
                             (-> (f component)
