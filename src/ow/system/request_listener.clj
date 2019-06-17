@@ -123,10 +123,10 @@
                                      (log/log-data :debug "response channel closed" request)))
                           (ex-info "timeout while waiting for response"
                                    (log/log-data :debug "response timeout" request)))))]
-    (log/trace request-request "doing request")
+    (log/trace "doing request")
     (a/put! out-ch (-> request-map log/attach))
     (let [response (a/<!! receipt)]
-      (log/trace request-response "received response" response)
+      (log/trace "received response" response)
       (if-not (instance? Throwable response)
         response
         (throw response)))))
