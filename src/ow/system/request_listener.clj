@@ -21,7 +21,7 @@
                                       #(or % (let [in-tap (a/tap in-mult (a/chan))
                                                    in-pub (a/pub in-tap topic-fn)]
                                                (owa/chunking-sub in-pub topics (a/chan)
-                                                                 (fn [_] (some-> (log/get-checkpoints-root) :id)))))))
+                                                                 (fn [_] (some-> (log/get-root-checkpoint) :id)))))))
                          system)
              component (update-in component [:ow.system/requester :out-ch] #(or % out-ch))
              system    (assoc-in system [:components name :workers instance] component)]
@@ -75,7 +75,7 @@
           (run-loop [this in-ch]
             (a/go-loop [topics-map (a/<! in-ch)]
               (when-not (nil? topics-map)
-                (log/with-logging-info (some-> topics-map first val log/detach)  ;; TODO: how can we remove this internal knowledge of ow.logging?
+                (log/with-historical-logging-info (some-> topics-map first val log/detach)  ;; TODO: how can we remove this internal knowledge of ow.logging?
                   (future
                     (->> (apply-handler this topics-map)
                          (handle-response this topics-map))))
@@ -137,8 +137,8 @@
                                              :input-spec     :tbd
                                              :output-spec    :tbd
                                              :handler        (log/fn cahandler [this {:keys [a] :as request-map}]
-                                                               (println "AAAAAAAAAAAAAAAAAAAAAAAAAAAa111" (:id (log/get-trace-root)))
-                                                               (log/warn ca-log nil request-map)
+                                                               (println "AAAAAAAAAAAAAAAAAAAAAAAAAAAa111" (:id (log/get-root-checkpoint)))
+                                                               (log/warn "ca-log" request-map)
                                                                (Thread/sleep 500)
                                                                (emit this :b {:bdata 1})
                                                                (Thread/sleep 500)
@@ -146,8 +146,8 @@
 
            :cb {:ow.system/request-listener {:topics         #{:b}
                                              :handler        (log/fn cbhandler [this {:keys [b] :as request-map}]
-                                                               (println "AAAAAAAAAAAAAAAAAAAAAAAAAAAa222" (:id (log/get-trace-root)))
-                                                               (log/warn cb-log nil request-map)
+                                                               (println "AAAAAAAAAAAAAAAAAAAAAAAAAAAa222" (:id (log/get-root-checkpoint)))
+                                                               (log/warn "cb-log" request-map)
                                                                (Thread/sleep 500)
                                                                #_(emit this :d1 {:d1data 1})
                                                                (-> (request this :d1 {:d1data 1} :timeout 5000)
@@ -156,15 +156,15 @@
            :cc {:ow.system/request-listener {:topics         #{:c}
                                              :output-signals [:d2]
                                              :handler        (log/fn cchandler [this {:keys [c] :as request-map}]
-                                                               (println "AAAAAAAAAAAAAAAAAAAAAAAAAAAa333" (:id (log/get-trace-root)))
-                                                               (log/warn cc-log nil request-map)
+                                                               (println "AAAAAAAAAAAAAAAAAAAAAAAAAAAa333" (:id (log/get-root-checkpoint)))
+                                                               (log/warn "cc-log" request-map)
                                                                (Thread/sleep 1000)
                                                                (emit this :d2 {:d2data 1}))}}
 
            :cd {:ow.system/request-listener {:topics         #{:d1 :d2}
                                              :handler        (log/fn cdhandler [this {:keys [d1 d2] :as request-map}]
-                                                               (println "AAAAAAAAAAAAAAAAAAAAAAAAAAAa444" (:id (log/get-trace-root)))
-                                                               (log/warn cd-log nil request-map)
+                                                               (println "AAAAAAAAAAAAAAAAAAAAAAAAAAAa444" (:id (log/get-root-checkpoint)))
+                                                               (log/warn "cd-log" request-map)
                                                                :d1d2response)}}}
       system (-> (ow.system/init-system cfg)
                  (ow.system/start-system))
