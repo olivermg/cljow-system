@@ -34,7 +34,7 @@
 
           (apply-handler [{{:keys [handler retry-count retry-delay-fn]} :ow.system/request-listener :as this}
                           request-map]
-            (log/with-checkpoint apply-handler
+            (log/with-checkpoint "apply-handler"
               (let [retry-count    (or retry-count 1)
                     retry-delay-fn (or retry-delay-fn
                                        (owclj/make-retry-delay-log10-f :exp 2.0
