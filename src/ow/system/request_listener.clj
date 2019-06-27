@@ -34,25 +34,25 @@
 
           (apply-handler [{{:keys [handler retry-count retry-delay-fn]} :ow.system/request-listener :as this}
                           request-map]
-            (log/with-checkpoint "apply-handler"
-              (let [retry-count    (or retry-count 1)
-                    retry-delay-fn (or retry-delay-fn
-                                       (owclj/make-retry-delay-log10-f :exp 2.0
-                                                                       :cap (* 30 60 1000)
-                                                                       :varpct 10.0))
-                    requests       (->> request-map
-                                        (map (fn [[topic request]]
-                                               [topic (get request :request)]))
-                                        (into {}))]
-                (owclj/tries [retry-count  ;; TODO: implement abort (e.g. when system gets shut down in between retries)
-                              :try-sym       try
-                              :exception-f   (partial handle-exception this)
-                              :retry-delay-f retry-delay-fn]
-                             (log/trace "invoke handler" {:try try})
-                             (handler this requests)
-                             (catch Throwable e
-                               (handle-exception this e)
-                               e)))))
+            #_(log/with-checkpoint "apply-handler")
+            (let [retry-count    (or retry-count 1)
+                  retry-delay-fn (or retry-delay-fn
+                                     (owclj/make-retry-delay-log10-f :exp 2.0
+                                                                     :cap (* 30 60 1000)
+                                                                     :varpct 10.0))
+                  requests       (->> request-map
+                                      (map (fn [[topic request]]
+                                             [topic (get request :request)]))
+                                      (into {}))]
+              (owclj/tries [retry-count  ;; TODO: implement abort (e.g. when system gets shut down in between retries)
+                            :try-sym       try
+                            :exception-f   (partial handle-exception this)
+                            :retry-delay-f retry-delay-fn]
+                           #_(log/trace "invoke handler" {:try try})
+                           (handler this requests)
+                           (catch Throwable e
+                             (handle-exception this e)
+                             e))))
 
           (handle-response [this request-map response]
             (let [response-chs (->> request-map
@@ -61,15 +61,15 @@
                                     (remove nil?))]
               (cond
                 ;;; 1. if caller(s) is/are waiting for a response, return response to it/them, regardless of if it's an exception or not:
-                (not-empty response-chs)       (do (log/trace "sending back handler's response" response)
+                (not-empty response-chs)       (do #_(log/trace "sending back handler's response" response)
                                                    (doseq [response-ch response-chs]
                                                      (a/put! response-ch [response])
                                                      (a/close! response-ch)))
                 ;;; 2. if nobody is waiting for our response, throw exceptions:
-                (instance? Throwable response) (do (log/trace "throwing handler's exception" response)
+                (instance? Throwable response) (do #_(log/trace "throwing handler's exception" response)
                                                    (throw response))
                 ;;; 3. if nobody is waiting for our response, simply evaluate to regular responses:
-                true                           (do (log/trace "discarding handler's response" response)
+                true                           (do #_(log/trace "discarding handler's response" response)
                                                    response))))
 
           (run-loop [this in-ch]
@@ -104,7 +104,7 @@
   (let [{:keys [out-ch]} requester
         event-map {:topic   topic
                    :request request}]
-    (log/trace "emitting event")
+    #_(log/trace "emitting event")
     (a/put! out-ch (-> event-map log/attach))))
 
 (defn request [{:keys [ow.system/requester] :as this} topic request & {:keys [timeout]}]
@@ -123,10 +123,10 @@
                                      (log/log-data :debug "response channel closed" request)))
                           (ex-info "timeout while waiting for response"
                                    (log/log-data :debug "response timeout" request)))))]
-    (log/trace "doing request")
+    #_(log/trace "doing request")
     (a/put! out-ch (-> request-map log/attach))
     (let [response (a/<!! receipt)]
-      (log/trace "received response" response)
+      #_(log/trace "received response" response)
       (if-not (instance? Throwable response)
         response
         (throw response)))))
